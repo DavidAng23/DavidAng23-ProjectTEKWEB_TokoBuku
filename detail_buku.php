@@ -17,7 +17,7 @@ if (!$book_data) {
     include_once 'template/footer.php'; exit;
 }
 
-// Ambil kategori
+//Ambil kategori
 $category = new Category();
 $categories = $category->getAll();
 $category_name = "Umum";
