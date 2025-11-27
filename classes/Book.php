@@ -50,4 +50,41 @@ class Book {
             return $stmt->fetch(PDO::FETCH_ASSOC);
         } catch (PDOException $e) { return false; }
     }
+
+    // Fungsi tambah buku baru
+    public function create($data, $file) {
+        try {
+            // Upload gambar dulu
+            $image_filename = $this->uploadCover($file);
+            if ($image_filename === false) return false;
+
+            // Query insert data
+            $query = "INSERT INTO " . $this->table_name . "
+                      (title, author, description, price, stock, category_id, cover_image)
+                      VALUES (:title, :author, :description, :price, :stock, :cat_id, :img)";
+
+            $stmt = $this->conn->prepare($query);
+            $stmt->execute([
+                ':title' => $data['title'],
+                ':author' => $data['author'],
+                ':description' => $data['description'],
+                ':price' => $data['price'],
+                ':stock' => $data['stock'],
+                ':cat_id' => $data['category_id'],
+                ':img' => $image_filename
+            ]);
+            return true;
+        } catch (PDOException $e) { return false; }
+    }
+
+    // Helper upload gambar
+    private function uploadCover($file) {
+        if (!isset($file['name']) || $file['error'] != UPLOAD_ERR_OK) return 'default.jpg';
+        $ext = strtolower(pathinfo($file["name"], PATHINFO_EXTENSION));
+        $new_filename = "cover_" . time() . "." . $ext;
+        $target = "../assets/images/" . $new_filename;
+        if (!in_array($ext, ['jpg', 'jpeg', 'png'])) return false;
+        if (move_uploaded_file($file["tmp_name"], $target)) return $new_filename;
+        return false;
+    }
 ?>
