@@ -1,62 +1,17 @@
 <?php
-// admin/index.php
-
-// 1. KEAMANAN & KONEKSI
-// Memulai session agar bisa cek login
 session_start();
-
-// Panggil penjaga pintu (Auth Guard) untuk memastikan yang akses adalah ADMIN
 require_once 'auth_guard.php'; 
-
-// Panggil Class Book untuk mengambil data buku dari database
 require_once '../classes/Book.php'; 
-
-// Panggil Class Database secara manual karena kita butuh koneksi kustom untuk menghitung statistik
 require_once '../classes/Database.php'; 
 
-// 2. AMBIL DATA UTAMA (BUKU)
-// Membuat objek buku baru
 $book = new Book(); 
-// Mengambil seluruh data buku untuk ditampilkan di tabel
 $books = $book->getAll(); 
 
-
-// 3. LOGIKA STATISTIK (DASHBOARD)
-// Membuat koneksi database baru khusus untuk query manual
-$db = new Database();
-$conn = $db->getConnection();
-
-// A. Hitung Total Buku
-// Query COUNT(*) menghitung jumlah baris di tabel books
-$stmt1 = $conn->query("SELECT COUNT(*) FROM books");
-// fetchColumn() mengambil satu angka hasil hitungan tadi
-$total_buku = $stmt1->fetchColumn();
-
-// B. Hitung Total Pesanan
-// Menghitung jumlah baris di tabel orders
-$stmt2 = $conn->query("SELECT COUNT(*) FROM orders");
-$total_order = $stmt2->fetchColumn();
-
-// C. Hitung Estimasi Pendapatan
-// Menjumlahkan (SUM) kolom total_amount, tapi hanya pesanan yang statusnya BUKAN 'cancelled'
-$stmt3 = $conn->query("SELECT SUM(total_amount) FROM orders WHERE status != 'cancelled'");
-$total_income = $stmt3->fetchColumn();
-
-
-// 4. LOGIKA HAPUS (DELETE) - DIGABUNG DALAM FILE INI
-// Cek apakah ada parameter 'action=delete' dan 'id' di URL?
-if (isset($_GET['action']) && $_GET['action'] == 'delete' && isset($_GET['id'])) {
-    
-    // Panggil method delete() dari Class Book
-    if ($book->delete($_GET['id'])) {
-        // Jika sukses hapus, refresh halaman ini (redirect ke dirinya sendiri) agar data hilang dari tabel
-        header("Location: index.php"); 
-        exit; 
-    } else {
-        // Jika gagal, simpan pesan error
-        $message = '<div class="alert alert-danger">Gagal menghapus buku.</div>';
-    }
-}
+// Dashboard Stats
+$db = new Database(); $conn = $db->getConnection();
+$total_buku = $conn->query("SELECT COUNT(*) FROM books")->fetchColumn();
+$total_order = $conn->query("SELECT COUNT(*) FROM orders")->fetchColumn();
+$total_income = $conn->query("SELECT SUM(total_amount) FROM orders WHERE status != 'cancelled'")->fetchColumn();
 ?>
 
 <!doctype html>
@@ -64,7 +19,7 @@ if (isset($_GET['action']) && $_GET['action'] == 'delete' && isset($_GET['id']))
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Admin Panel - Dashboard</title>
+    <title>Admin Panel - AJAX</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   </head>
@@ -72,10 +27,8 @@ if (isset($_GET['action']) && $_GET['action'] == 'delete' && isset($_GET['id']))
 
     <nav class="navbar navbar-expand-lg navbar-dark bg-danger mb-4 shadow-sm">
       <div class="container">
-        <a class="navbar-brand fw-bold" href="index.php"><i class="fas fa-user-shield me-2"></i>ADMIN PANEL</a>
-        
+        <a class="navbar-brand fw-bold" href="index.php">ADMIN PANEL</a>
         <div class="d-flex">
-            <a class="btn btn-outline-light btn-sm me-2" href="../index.php" target="_blank"><i class="fas fa-external-link-alt"></i> Lihat Web</a>
             <a class="btn btn-light btn-sm fw-bold text-danger" href="../logout.php">LOGOUT</a>
         </div>
       </div>
@@ -83,41 +36,30 @@ if (isset($_GET['action']) && $_GET['action'] == 'delete' && isset($_GET['id']))
 
     <div class="container">
         <div class="row mb-4">
-            
             <div class="col-md-4">
-                <div class="card text-white bg-primary mb-3 shadow-sm h-100">
-                    <div class="card-body">
-                        <h5 class="card-title"><i class="fas fa-book me-2"></i>Total Buku</h5>
-                        <h2 class="fw-bold"><?php echo $total_buku; ?></h2>
-                    </div>
+                <div class="card text-white bg-primary mb-3 shadow-sm">
+                    <div class="card-body"><h3><?php echo $total_buku; ?></h3><small>Buku</small></div>
                 </div>
             </div>
-            
             <div class="col-md-4">
-                <div class="card text-white bg-success mb-3 shadow-sm h-100">
-                    <div class="card-body">
-                        <h5 class="card-title"><i class="fas fa-shopping-bag me-2"></i>Total Pesanan</h5>
-                        <h2 class="fw-bold"><?php echo $total_order; ?></h2>
-                    </div>
+                <div class="card text-white bg-success mb-3 shadow-sm">
+                    <div class="card-body"><h3><?php echo $total_order; ?></h3><small>Pesanan</small></div>
                 </div>
             </div>
-            
             <div class="col-md-4">
-                <div class="card text-white bg-warning mb-3 shadow-sm h-100">
-                    <div class="card-body text-dark">
-                        <h5 class="card-title"><i class="fas fa-money-bill-wave me-2"></i>Estimasi Pendapatan</h5>
-                        <h2 class="fw-bold">Rp <?php echo number_format($total_income, 0, ',', '.'); ?></h2>
-                    </div>
+                <div class="card text-white bg-warning mb-3 shadow-sm">
+                    <div class="card-body text-dark"><h3>Rp <?php echo number_format($total_income); ?></h3><small>Pendapatan</small></div>
                 </div>
             </div>
         </div>
 
         <div class="d-flex justify-content-between align-items-center mb-3">
-            <h4 class="fw-bold mb-0 text-secondary">Daftar Buku</h4>
-            <a href="tambah_buku.php" class="btn btn-primary shadow-sm"><i class="fas fa-plus me-2"></i>Tambah Buku</a>
+            <h4 class="fw-bold mb-0">Daftar Buku</h4>
+            <div>
+                <a href="tambah_kategori.php" class="btn btn-secondary shadow-sm me-2">+ Tambah Kategori</a>
+                <a href="tambah_buku.php" class="btn btn-primary shadow-sm">+ Tambah Buku</a>
+            </div>
         </div>
-
-        <?php if(isset($message)) echo $message; ?>
 
         <div class="card shadow-sm border-0">
             <div class="card-body p-0">
@@ -126,50 +68,32 @@ if (isset($_GET['action']) && $_GET['action'] == 'delete' && isset($_GET['id']))
                         <thead class="table-light">
                             <tr>
                                 <th class="ps-3">Cover</th>
-                                <th>Judul Buku</th>
-                                <th>Kategori</th>
+                                <th>Judul</th>
                                 <th>Harga</th>
                                 <th>Stok</th>
                                 <th class="text-center">Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <?php if (empty($books)): ?>
-                                <tr><td colspan="6" class="text-center py-4 text-muted">Belum ada data buku.</td></tr>
-                            
-                            <?php else: ?>
-                                <?php foreach ($books as $b): ?>
+                            <?php foreach ($books as $b): ?>
                                 <tr>
                                     <td class="ps-3">
-                                        <img src="../assets/images/<?php echo htmlspecialchars($b['cover_image']); ?>" width="50" class="rounded border">
+                                        <img src="../assets/images/<?php echo htmlspecialchars($b['cover_image']); ?>" width="50" class="rounded">
                                     </td>
-                                    
                                     <td class="fw-bold"><?php echo htmlspecialchars($b['title']); ?></td>
-                                    
-                                    <td><span class="badge bg-secondary bg-opacity-10 text-secondary border"><?php echo htmlspecialchars($b['category_name'] ?? '-'); ?></span></td>
-                                    
                                     <td>Rp <?php echo number_format($b['price'], 0, ',', '.'); ?></td>
-                                    
-                                    <td>
-                                        <?php if($b['stock'] > 5): ?>
-                                            <span class="badge bg-success"><?php echo $b['stock']; ?></span>
-                                        <?php elseif($b['stock'] > 0): ?>
-                                            <span class="badge bg-warning text-dark"><?php echo $b['stock']; ?></span>
-                                        <?php else: ?>
-                                            <span class="badge bg-danger">Habis</span>
-                                        <?php endif; ?>
-                                    </td>
-                                    
+                                    <td><?php echo $b['stock']; ?></td>
                                     <td class="text-center">
                                         <a href="edit_buku.php?id=<?php echo $b['id']; ?>" class="btn btn-warning btn-sm"><i class="fas fa-edit"></i></a>
                                         
-                                        <a href="index.php?action=delete&id=<?php echo $b['id']; ?>" 
-                                           class="btn btn-danger btn-sm"
-                                           onclick="return confirm('Yakin hapus? Data tidak bisa kembali.');"><i class="fas fa-trash"></i></a>
+                                        <button class="btn btn-danger btn-sm btn-delete-ajax" 
+                                                data-id="<?php echo $b['id']; ?>" 
+                                                data-url="process_book.php">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
                                     </td>
                                 </tr>
-                                <?php endforeach; ?>
-                            <?php endif; ?>
+                            <?php endforeach; ?>
                         </tbody>
                     </table>
                 </div>
@@ -177,6 +101,7 @@ if (isset($_GET['action']) && $_GET['action'] == 'delete' && isset($_GET['id']))
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="../assets/js/script.js"></script>
   </body>
 </html>
