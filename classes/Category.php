@@ -36,7 +36,6 @@ class Category {
             // Siapkan statement
             $stmt = $this->conn->prepare($query);
             
-            // Bersihkan data (opsional, tapi bindParam sudah cukup aman)
             $category_name = htmlspecialchars(strip_tags($category_name));
             
             // Masukkan parameter
@@ -49,7 +48,6 @@ class Category {
             return false;
             
         } catch (PDOException $e) {
-            // Error biasanya terjadi jika nama kategori sudah ada (Duplicate Entry)
             return false;
         }
     }
